@@ -1,3 +1,7 @@
+from urllib.error import HTTPError
+import requests
+import urllib.request
+import json
 from flask_apscheduler import APScheduler
 from datetime import datetime
 import redis
@@ -6,7 +10,7 @@ from flask_restful import Resource,Api
 from flask import Flask
 from typing import Dict
 from flask import Flask
-
+from flask_cors import CORS
 
 
 
@@ -17,9 +21,14 @@ def create_app(config_dict: Dict = {}):
 class HealthCheck(Resource):   
 
     def get(self):
+        nodes=json.loads(redisInstance.get("Nodes"))
+        lastStatus=json.loads(redisInstance.get("LastStatus"))
+
         data={
             "StartTime" : str(redisInstance.get("StartTime")),
-            "LastQuery" : str(redisInstance.get("LastQuery"))
+            "LastQuery" : str(redisInstance.get("LastQuery")),
+            "Nodes" : nodes ,
+            "LastStatus":  lastStatus
         }
         return data
 
@@ -41,6 +50,7 @@ app_context.push()
 
 api = Api(app)
 api.add_resource(HealthCheck, "/healthcheck")
+CORS(app)
 
 scheduler = APScheduler()
 
@@ -48,6 +58,32 @@ scheduler = APScheduler()
 def job1():
     LastQuery=datetime.now()
     redisInstance.set('LastQuery', str(LastQuery))    
+    nodesString=redisInstance.get('Nodes')        
+    nodes_list= []
+    nodes_list.append(json.loads(nodesString))        
+    response=[]
+    
+    for node in nodes_list[0]:        
+        code,elapsed=getResponseCode(str(node["url"]))
+        print(node["url"] +"-"+str(code)+"-"+str(elapsed) )
+        nodeStatus=""
+        if(code==200):
+            nodeStatus="Active"
+        else:
+            nodeStatus="InActive"
+        nodeResponse={ "name" : str(node["name"]) , "status" : nodeStatus,"elapsed" : str(elapsed), "lastStatusCode" : code}
+        response.append( nodeResponse)
+
+    redisInstance.set('LastStatus',json.dumps(response))
+
+
+def getResponseCode(url):
+    try:
+        response = requests.get(url)
+        return response.status_code, response.elapsed        
+    except requests.exceptions.HTTPError as err:
+        return err.response.status_code,0
+
 
 scheduler.start()
 
