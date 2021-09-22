@@ -34,8 +34,8 @@ class HealthCheck(Resource):
 
 
 redisInstance = redis.Redis(
-    host='ec2-52-73-185-231.compute-1.amazonaws.com', 
-    port=17030,
+    host='ec2-50-19-196-205.compute-1.amazonaws.com', 
+    port=17830,
     password="p8246bd54e4335f5d4001090409c247e242ebbc0d28a3a9a8f92400e7b9e1d178",
     ssl=True,
     ssl_cert_reqs=None
