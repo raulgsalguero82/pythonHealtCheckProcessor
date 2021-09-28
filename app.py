@@ -18,6 +18,25 @@ def create_app(config_dict: Dict = {}):
     app = Flask(__name__)    
     return app
 
+class LogHandler(Resource):   
+
+    def get(self):
+        logs=redisInstance.lrange("tbl_log",0,-1)
+
+        output=[]
+        for item in logs:
+            output.append(json.loads(item))
+        
+        secHeader="";
+        if request.headers.get("Authorization"):
+            secHeader=request.headers.get("Authorization")
+
+        data={
+            "logs" : output,
+            "secHeader": secHeader
+        }
+        return data
+
 class HealthCheck(Resource):   
 
     def get(self):
@@ -32,13 +51,14 @@ class HealthCheck(Resource):
         }
         return data
 
-
 redisInstance = redis.Redis(
     host='ec2-50-19-196-205.compute-1.amazonaws.com', 
     port=17830,
     password="p8246bd54e4335f5d4001090409c247e242ebbc0d28a3a9a8f92400e7b9e1d178",
     ssl=True,
-    ssl_cert_reqs=None
+    ssl_cert_reqs=None,
+    charset="utf-8",
+    decode_responses=True
     )
 
 startTime=datetime.now()
@@ -50,6 +70,7 @@ app_context.push()
 
 api = Api(app)
 api.add_resource(HealthCheck, "/healthcheck")
+api.add_resource(LogHandler, "/log")
 CORS(app)
 
 scheduler = APScheduler()
